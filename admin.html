@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>留言后台 - 匿名提问箱</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        body {
+            background: #f5f7fa;
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #333;
+            font-size: 26px;
+            margin-bottom: 8px;
+        }
+        .stats {
+            color: #888;
+            font-size: 14px;
+        }
+        .refresh-btn {
+            margin-top: 16px;
+            padding: 10px 24px;
+            border: none;
+            background: #667eea;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .refresh-btn:hover {
+            opacity: 0.9;
+        }
+        .message-list {
+            margin-top: 20px;
+        }
+        .message-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s;
+        }
+        .message-card:hover {
+            transform: translateY(-2px);
+        }
+        .message-content {
+            color: #333;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 12px;
+            word-break: break-word;
+        }
+        .message-time {
+            color: #aaa;
+            font-size: 13px;
+            text-align: right;
+        }
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+            font-size: 15px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 15px;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📩 全部匿名留言</h1>
+            <p class="stats" id="stats">共 0 条留言</p>
+            <button class="refresh-btn" onclick="loadMessages()">🔄 刷新留言</button>
+        </header>
+        <div id="content">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+
+<script>
+    // 配置区域 - 部署前请替换为你自己的 jsonbin 信息
+    const BIN_ID = "你的BIN_ID";
+    const MASTER_KEY = "你的MASTER_KEY";
+    const API_BASE = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+    const contentEl = document.getElementById('content');
+    const statsEl = document.getElementById('stats');
+
+    async function loadMessages() {
+        contentEl.innerHTML = '<div class="loading">加载中...</div>';
+        
+        try {
+            const res = await fetch(API_BASE, {
+                headers: { 'X-Master-Key': MASTER_KEY }
+            });
+            
+            if (!res.ok) {
+                throw new Error('加载失败');
+            }
+            
+            const data = await res.json();
+            const list = (data.record.list || []).reverse(); // 最新的在前面
+            
+            statsEl.textContent = `共 ${list.length} 条留言`;
+            
+            if (list.length === 0) {
+                contentEl.innerHTML = '<div class="empty">还没有留言，分享你的提问箱链接吧～</div>';
+                return;
+            }
+            
+            const html = list.map(item => `
+                <div class="message-card">
+                    <div class="message-content">${escapeHtml(item.content)}</div>
+                    <div class="message-time">🕒 ${item.time}</div>
+                </div>
+            `).join('');
+            
+            contentEl.innerHTML = `<div class="message-list">${html}</div>`;
+            
+        } catch (err) {
+            console.error(err);
+            contentEl.innerHTML = '<div class="error">❌ 加载失败，请检查配置或稍后再试</div>';
+        }
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // 页面加载时自动获取
+    loadMessages();
+</script>
+</body>
+</html>

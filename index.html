@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>匿名提问箱</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: #fff;
+            border-radius: 20px;
+            padding: 40px 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 16px;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            font-size: 16px;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        textarea:focus {
+            border-color: #667eea;
+        }
+        .char-count {
+            text-align: right;
+            color: #aaa;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        button {
+            width: 100%;
+            margin-top: 20px;
+            padding: 16px;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border-radius: 12px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:active {
+            transform: translateY(0);
+            opacity: 0.9;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .tip {
+            margin-top: 20px;
+            text-align: center;
+            color: #999;
+            font-size: 13px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 16px;
+            display: none;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 16px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✨ 匿名提问箱</h1>
+        <p class="subtitle">有什么想说的，放心写下来</p>
+        <textarea id="message" placeholder="在这里输入你的匿名留言..." maxlength="500"></textarea>
+        <div class="char-count"><span id="count">0</span>/500</div>
+        <button id="submitBtn" onclick="submitMessage()">提交匿名消息</button>
+        <div class="success" id="successMsg">✅ 提交成功！感谢你的留言</div>
+        <div class="error" id="errorMsg">❌ 提交失败，请稍后再试</div>
+        <p class="tip">完全匿名，不会记录任何个人信息</p>
+    </div>
+
+<script>
+    // 配置区域 - 部署前请替换为你自己的 jsonbin 信息
+    const BIN_ID = "你的BIN_ID";
+    const MASTER_KEY = "你的MASTER_KEY";
+    const API_BASE = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+    const messageInput = document.getElementById('message');
+    const charCount = document.getElementById('count');
+    const submitBtn = document.getElementById('submitBtn');
+    const successMsg = document.getElementById('successMsg');
+    const errorMsg = document.getElementById('errorMsg');
+
+    messageInput.addEventListener('input', () => {
+        charCount.textContent = messageInput.value.length;
+    });
+
+    async function submitMessage() {
+        const content = messageInput.value.trim();
+        if (!content) {
+            showError('请输入内容后再提交');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = '提交中...';
+        hideMessages();
+
+        try {
+            // 先获取现有数据
+            const getRes = await fetch(API_BASE, {
+                headers: { 'X-Master-Key': MASTER_KEY }
+            });
+            const getData = await getRes.json();
+            const list = getData.record.list || [];
+
+            // 添加新留言
+            list.push({
+                content: content,
+                time: new Date().toLocaleString('zh-CN')
+            });
+
+            // 保存更新
+            const putRes = await fetch(API_BASE, {
+                method: 'PUT',
+                headers: {
+                    'X-Master-Key': MASTER_KEY,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ list: list })
+            });
+
+            if (putRes.ok) {
+                showSuccess();
+                messageInput.value = '';
+                charCount.textContent = '0';
+            } else {
+                showError('提交失败，请稍后再试');
+            }
+        } catch (err) {
+            console.error(err);
+            showError('网络错误，请稍后再试');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '提交匿名消息';
+        }
+    }
+
+    function showSuccess() {
+        successMsg.style.display = 'block';
+        errorMsg.style.display = 'none';
+        setTimeout(() => {
+            successMsg.style.display = 'none';
+        }, 3000);
+    }
+
+    function showError(msg) {
+        errorMsg.textContent = msg;
+        errorMsg.style.display = 'block';
+        successMsg.style.display = 'none';
+        setTimeout(() => {
+            errorMsg.style.display = 'none';
+        }, 3000);
+    }
+
+    function hideMessages() {
+        successMsg.style.display = 'none';
+        errorMsg.style.display = 'none';
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>匿名问答墙</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        h1 {
+            color: #fff;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+        }
+        .ask-box {
+            background: #fff;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 12px;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            font-size: 15px;
+            resize: vertical;
+            outline: none;
+        }
+        textarea:focus {
+            border-color: #667eea;
+        }
+        .submit-btn {
+            width: 100%;
+            margin-top: 12px;
+            padding: 12px;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .qa-list {
+            margin-top: 20px;
+        }
+        .qa-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+        .question {
+            color: #333;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+        .q-time {
+            color: #aaa;
+            font-size: 12px;
+            text-align: right;
+            margin-bottom: 12px;
+        }
+        .reply {
+            background: #f0f4ff;
+            border-left: 3px solid #667eea;
+            padding: 12px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 8px;
+        }
+        .reply-label {
+            color: #667eea;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .reply-content {
+            color: #333;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 4px;
+        }
+        .reply-time {
+            color: #999;
+            font-size: 11px;
+            text-align: right;
+        }
+        .no-reply {
+            color: #bbb;
+            font-size: 13px;
+            font-style: italic;
+            margin-top: 8px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #fff;
+        }
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: rgba(255,255,255,0.8);
+        }
+        .refresh-btn {
+            display: block;
+            margin: 0 auto 20px;
+            padding: 10px 24px;
+            border: none;
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 10px;
+            font-size: 13px;
+            display: none;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 10px;
+            font-size: 13px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💬 匿名问答墙</h1>
+            <p class="subtitle">匿名提问，我会在这里回复你</p>
+        </div>
+
+        <div class="ask-box">
+            <textarea id="message" placeholder="在这里输入你的问题..." maxlength="500"></textarea>
+            <button class="submit-btn" id="submitBtn" onclick="submitQuestion()">提交问题</button>
+            <div class="success" id="successMsg">✅ 提交成功！我看到后会回复你</div>
+            <div class="error" id="errorMsg">❌ 提交失败，请稍后再试</div>
+        </div>
+
+        <button class="refresh-btn" onclick="loadQA()">🔄 刷新看新回复</button>
+
+        <div id="qaList">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+
+<script>
+    // 配置区域
+    const BIN_ID = "6a9d13b2f5f4af5e29706f72";
+    const MASTER_KEY = "$2a$10$H6RNZ8yRl2VzOoJvBsDCT.j1JiSt7uinVUZ.tmlwgen78ATCB7lZq";
+    const API_BASE = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+    const messageInput = document.getElementById('message');
+    const submitBtn = document.getElementById('submitBtn');
+    const successMsg = document.getElementById('successMsg');
+    const errorMsg = document.getElementById('errorMsg');
+    const qaList = document.getElementById('qaList');
+
+    async function loadQA() {
+        qaList.innerHTML = '<div class="loading">加载中...</div>';
+        try {
+            const res = await fetch(`${API_BASE}/latest`, {
+                headers: { 'X-Access-Key': MASTER_KEY }
+            });
+            if (!res.ok) throw new Error('加载失败');
+            const data = await res.json();
+            const list = (data.record.list || []).reverse();
+            if (list.length === 0) {
+                qaList.innerHTML = '<div class="empty">还没有问题，来提第一个问题吧～</div>';
+                return;
+            }
+            const html = list.map(item => {
+                const replies = item.replies || [];
+                return `
+                <div class="qa-card">
+                    <div class="question">❓ ${escapeHtml(item.content)}</div>
+                    <div class="q-time">${item.time}</div>
+                    ${replies.length > 0 ? replies.map(r => `
+                    <div class="reply">
+                        <div class="reply-label">💬 我的回复</div>
+                        <div class="reply-content">${escapeHtml(r.content)}</div>
+                        <div class="reply-time">${r.time}</div>
+                    </div>
+                    `).join('') : '<div class="no-reply">⏳ 等待回复中...</div>'}
+                </div>
+                `;
+            }).join('');
+            qaList.innerHTML = `<div class="qa-list">${html}</div>`;
+        } catch (err) {
+            console.error(err);
+            qaList.innerHTML = '<div class="empty">加载失败，请刷新重试</div>';
+        }
+    }
+
+    async function submitQuestion() {
+        const content = messageInput.value.trim();
+        if (!content) {
+            showError('请输入问题后再提交');
+            return;
+        }
+        submitBtn.disabled = true;
+        submitBtn.textContent = '提交中...';
+        hideMessages();
+        try {
+            // 先获取现有数据
+            const getRes = await fetch(`${API_BASE}/latest`, {
+                headers: { 'X-Access-Key': MASTER_KEY }
+            });
+            const getData = await getRes.json();
+            const list = getData.record.list || [];
+            // 添加新问题
+            list.push({
+                content: content,
+                time: new Date().toLocaleString('zh-CN'),
+                replies: []
+            });
+            // 保存更新
+            const putRes = await fetch(API_BASE, {
+                method: 'PUT',
+                headers: {
+                    'X-Access-Key': MASTER_KEY,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ list: list })
+            });
+            if (putRes.ok) {
+                showSuccess();
+                messageInput.value = '';
+                loadQA();
+            } else {
+                showError('提交失败，请稍后再试');
+            }
+        } catch (err) {
+            console.error(err);
+            showError('网络错误，请稍后再试');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '提交问题';
+        }
+    }
+
+    function showSuccess() {
+        successMsg.style.display = 'block';
+        errorMsg.style.display = 'none';
+        setTimeout(() => {
+            successMsg.style.display = 'none';
+        }, 3000);
+    }
+
+    function showError(msg) {
+        errorMsg.textContent = msg;
+        errorMsg.style.display = 'block';
+        successMsg.style.display = 'none';
+        setTimeout(() => {
+            errorMsg.style.display = 'none';
+        }, 3000);
+    }
+
+    function hideMessages() {
+        successMsg.style.display = 'none';
+        errorMsg.style.display = 'none';
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // 页面加载时自动获取
+    loadQA();
+</script>
+</body>
+</html>

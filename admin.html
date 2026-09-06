@@ -120,7 +120,7 @@
         contentEl.innerHTML = '<div class="loading">加载中...</div>';
         
         try {
-            const res = await fetch(API_BASE, {
+            const res = await fetch(`${API_BASE}/latest`, {
                 headers: { 'X-Master-Key': MASTER_KEY }
             });
             

@@ -42,48 +42,80 @@
             border-radius: 8px;
             font-size: 14px;
             cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        .refresh-btn:hover {
-            opacity: 0.9;
-        }
-        .message-list {
-            margin-top: 20px;
         }
         .message-card {
             background: #fff;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 16px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-            transition: transform 0.2s;
-        }
-        .message-card:hover {
-            transform: translateY(-2px);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
         }
         .message-content {
             color: #333;
             font-size: 16px;
             line-height: 1.6;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             word-break: break-word;
         }
         .message-time {
             color: #aaa;
             font-size: 13px;
             text-align: right;
+            margin-bottom: 12px;
         }
-        .empty {
-            text-align: center;
-            padding: 60px 20px;
+        .replies {
+            margin-top: 12px;
+            padding-left: 16px;
+            border-left: 3px solid #667eea;
+        }
+        .reply-item {
+            background: #f0f4ff;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        .reply-content {
+            color: #333;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 4px;
+        }
+        .reply-time {
             color: #999;
-            font-size: 15px;
+            font-size: 12px;
+            text-align: right;
+        }
+        .reply-form {
+            margin-top: 12px;
+        }
+        .reply-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 8px;
+            resize: vertical;
+            min-height: 60px;
+        }
+        .reply-btn {
+            padding: 8px 20px;
+            border: none;
+            background: #667eea;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
         }
         .loading {
             text-align: center;
             padding: 40px;
             color: #667eea;
-            font-size: 15px;
+        }
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
         }
         .error {
             background: #f8d7da;
@@ -108,7 +140,7 @@
     </div>
 
 <script>
-    // 配置区域 - 部署前请替换为你自己的 jsonbin 信息
+    // 配置区域
     const BIN_ID = "6a9d13b2f5f4af5e29706f72";
     const MASTER_KEY = "$2a$10$H6RNZ8yRl2VzOoJvBsDCT.j1JiSt7uinVUZ.tmlwgen78ATCB7lZq";
     const API_BASE = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
@@ -118,38 +150,93 @@
 
     async function loadMessages() {
         contentEl.innerHTML = '<div class="loading">加载中...</div>';
-        
         try {
             const res = await fetch(`${API_BASE}/latest`, {
                 headers: { 'X-Access-Key': MASTER_KEY }
             });
-            
-            if (!res.ok) {
-                throw new Error('加载失败');
-            }
-            
+            if (!res.ok) throw new Error('加载失败');
             const data = await res.json();
-            const list = (data.record.list || []).reverse(); // 最新的在前面
-            
+            const list = (data.record.list || []).reverse();
             statsEl.textContent = `共 ${list.length} 条留言`;
-            
             if (list.length === 0) {
                 contentEl.innerHTML = '<div class="empty">还没有留言，分享你的提问箱链接吧～</div>';
                 return;
             }
-            
-            const html = list.map(item => `
+            const html = list.map((item, idx) => {
+                const realIndex = list.length - 1 - idx;
+                const replies = item.replies || [];
+                return `
                 <div class="message-card">
                     <div class="message-content">${escapeHtml(item.content)}</div>
                     <div class="message-time">🕒 ${item.time}</div>
+                    ${replies.length > 0 ? `
+                    <div class="replies">
+                        ${replies.map(r => `
+                        <div class="reply-item">
+                            <div class="reply-content">💬 我的回复：${escapeHtml(r.content)}</div>
+                            <div class="reply-time">${r.time}</div>
+                        </div>
+                        `).join('')}
+                    </div>
+                    ` : ''}
+                    <div class="reply-form">
+                        <textarea class="reply-input" id="reply-${realIndex}" placeholder="输入你的回复..."></textarea>
+                        <button class="reply-btn" onclick="replyMessage(${realIndex})">回复</button>
+                    </div>
                 </div>
-            `).join('');
-            
-            contentEl.innerHTML = `<div class="message-list">${html}</div>`;
-            
+                `;
+            }).join('');
+            contentEl.innerHTML = `<div>${html}</div>`;
         } catch (err) {
             console.error(err);
-            contentEl.innerHTML = '<div class="error">❌ 加载失败，请检查配置或稍后再试</div>';
+            contentEl.innerHTML = '<div class="error">❌ 加载失败，请稍后再试</div>';
+        }
+    }
+
+    async function replyMessage(index) {
+        const input = document.getElementById(`reply-${index}`);
+        const content = input.value.trim();
+        if (!content) {
+            alert('请输入回复内容');
+            return;
+        }
+        const btn = input.nextElementSibling;
+        btn.disabled = true;
+        btn.textContent = '回复中...';
+        try {
+            // 先获取现有数据
+            const getRes = await fetch(`${API_BASE}/latest`, {
+                headers: { 'X-Access-Key': MASTER_KEY }
+            });
+            const getData = await getRes.json();
+            const list = getData.record.list || [];
+            // 给对应留言加回复
+            if (!list[index].replies) list[index].replies = [];
+            list[index].replies.push({
+                content: content,
+                time: new Date().toLocaleString('zh-CN')
+            });
+            // 保存更新
+            const putRes = await fetch(API_BASE, {
+                method: 'PUT',
+                headers: {
+                    'X-Access-Key': MASTER_KEY,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ list: list })
+            });
+            if (putRes.ok) {
+                alert('回复成功！');
+                loadMessages();
+            } else {
+                alert('回复失败，请稍后再试');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('网络错误，请稍后再试');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '回复';
         }
     }
 
@@ -159,7 +246,6 @@
         return div.innerHTML;
     }
 
-    // 页面加载时自动获取
     loadMessages();
 </script>
 </body>

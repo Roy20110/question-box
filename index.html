@@ -125,7 +125,7 @@
 <script>
     // 配置区域 - 部署前请替换为你自己的 jsonbin 信息
     const BIN_ID = "6a9d13b2f5f4af5e29706f72";
-    const MASTER_KEY = "$2a$10$WE7XbQAdydPh7O0PjbZRewIbLNiB39nufASruyT508cVtS9MkmNS";
+    const MASTER_KEY = "$2a$10$H6RNZ8yRl2VzOoJvBsDCT.j1JiSt7uinVUZ.tmlwgen78ATCB7lZq";
     const API_BASE = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
     const messageInput = document.getElementById('message');
@@ -152,7 +152,7 @@
         try {
             // 先获取现有数据
             const getRes = await fetch(`${API_BASE}/latest`, {
-                headers: { 'X-Master-Key': MASTER_KEY }
+                headers: { 'X-Access-Key': MASTER_KEY }
             });
             const getData = await getRes.json();
             const list = getData.record.list || [];
@@ -167,7 +167,7 @@
             const putRes = await fetch(API_BASE, {
                 method: 'PUT',
                 headers: {
-                    'X-Master-Key': MASTER_KEY,
+                    'X-Access-Key': MASTER_KEY,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ list: list })

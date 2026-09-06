@@ -110,7 +110,7 @@
 <script>
     // 配置区域 - 部署前请替换为你自己的 jsonbin 信息
     const BIN_ID = "6a9d13b2f5f4af5e29706f72";
-    const MASTER_KEY = "$2a$10$WE7XbQAdydPh7O0PjbZRewIbLNiB39nufASruyT508cVtS9MkmNS";
+    const MASTER_KEY = "$2a$10$H6RNZ8yRl2VzOoJvBsDCT.j1JiSt7uinVUZ.tmlwgen78ATCB7lZq";
     const API_BASE = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
     const contentEl = document.getElementById('content');
@@ -121,7 +121,7 @@
         
         try {
             const res = await fetch(`${API_BASE}/latest`, {
-                headers: { 'X-Master-Key': MASTER_KEY }
+                headers: { 'X-Access-Key': MASTER_KEY }
             });
             
             if (!res.ok) {
